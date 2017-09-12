@@ -72,7 +72,7 @@ func setDomainHost(domain string, name string, hosttype string, address string, 
 }
 
 //
-// Protos operatoins
+// Protos operations
 //
 
 func getDNSResources() (map[string]Resource, error) {
