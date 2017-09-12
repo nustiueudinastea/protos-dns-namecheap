@@ -1,0 +1,10 @@
+{
+    "description": "This applications provides the capability to interact with the Namecheap API",
+    "params": [
+        "api_user",
+        "api_token",
+        "username",
+        "domain"
+    ],
+    "provides": ["dns"]
+}
