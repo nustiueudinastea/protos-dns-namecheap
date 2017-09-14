@@ -1,149 +1,23 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
-	"fmt"
-	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/Sirupsen/logrus"
 	namecheap "github.com/billputer/go-namecheap"
+	"github.com/nustiueudinastea/protoslib-go"
 	"gopkg.in/urfave/cli.v1"
 )
 
-type DNSResource struct {
-	Host  string `json:"host"`
-	Value string `json:"value" hash:"-"`
-	Type  string `json:"type"`
-	TTL   int    `json:"ttl" hash:"-"`
-}
-
-type Resource struct {
-	Type   string      `json:"type"`
-	Record DNSResource `json:"value"`
-	Status string      `json:"status"`
-	ID     string      `json:"id"`
-}
-
-var apiuser string
-var apitoken string
-var username string
-var domain string
-var protosURL string
-
 var log = logrus.New()
 
-//
-// Namecheap operations
-//
-
-func createResource(resource Resource) {
-	client := namecheap.NewClient(apiuser, apitoken, username)
-
-	// Get a list of your domains
-	domains, _ := client.DomainsGetList()
-	for _, domain := range domains {
-		fmt.Printf("Domain: %+v\n\n", domain.Name)
-	}
-}
-
-func checkDomain(dom string) (*namecheap.DomainInfo, error) {
-	log.Info("Checking domain ", dom)
-	client := namecheap.NewClient(apiuser, apitoken, username)
-	domainInfo, err := client.DomainGetInfo(dom)
-	return domainInfo, err
-}
-
-func getDomainHosts(domain string) (*namecheap.DomainDNSGetHostsResult, error) {
-	client := namecheap.NewClient(apiuser, apitoken, username)
-	domainParts := strings.Split(domain, ".")
-	domainHosts, err := client.DomainsDNSGetHosts(domainParts[0], domainParts[1])
-	return domainHosts, err
-}
-
-func setDomainHost(domain string, name string, hosttype string, address string, ttl int) (*namecheap.DomainDNSSetHostsResult, error) {
-	client := namecheap.NewClient(apiuser, apitoken, username)
-	domainParts := strings.Split(domain, ".")
-	host := namecheap.DomainDNSHost{Name: name, Type: hosttype, Address: address, TTL: ttl}
-	return client.DomainDNSSetHosts(domainParts[0], domainParts[1], []namecheap.DomainDNSHost{host})
-}
-
-//
-// Protos operations
-//
-
-func getDNSResources() (map[string]Resource, error) {
-	client := &http.Client{}
-	resourcesReq, err := http.NewRequest("GET", protosURL+"internal/resource/provider", nil)
-	resources := make(map[string]Resource)
-	resp, err := client.Do(resourcesReq)
-	if err != nil {
-		return map[string]Resource{}, err
-	}
-
-	decoder := json.NewDecoder(resp.Body)
-	err = decoder.Decode(&resources)
-	if err != nil {
-		return map[string]Resource{}, err
-	}
-	resp.Body.Close()
-	log.Debug("Found ", len(resources), " DNS resources.")
-	return resources, nil
-}
-
-func setResourceStatus(resourceID string, rstatus string) error {
-
-	log.Info("Setting status for resource ", resourceID)
-	statusJSON, err := json.Marshal(&struct {
-		Status string `json:"status"`
-	}{
-		Status: rstatus,
-	})
-	if err != nil {
-		return err
-	}
-
-	url := protosURL + "internal/resource/" + resourceID
-	req, err := http.NewRequest("POST", url, bytes.NewBuffer(statusJSON))
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-
-	return nil
-}
-
-func setStatusBatch(resources map[string]Resource, rstatus string) {
-	for _, resource := range resources {
-		err := setResourceStatus(resource.ID, rstatus)
-		if err != nil {
-			log.Error("Could not set status for resource ", resource.ID, ": ", err)
-		}
-	}
-}
-
-func regsiterDNSProvider() error {
-	var jsonStr = []byte(`{"type": "dns"}`)
-	req, err := http.NewRequest("POST", protosURL+"internal/provider", bytes.NewBuffer(jsonStr))
-	req.Header.Set("Content-Type", "application/json")
-
-	client := &http.Client{}
-	resp, err := client.Do(req)
-	if err != nil {
-		return err
-	}
-	resp.Body.Close()
-	return nil
-}
-
 func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []namecheap.DomainDNSHost) bool {
+	// The following 'if' is required because Namecheap has two default hosts (www and @) for a domain that doesn't have any custom hosts
+	if len(protosHosts) == 0 && len(namecheapHosts) == 2 && namecheapHosts[0].Name == "www" && namecheapHosts[1].Name == "@" {
+		return true
+	}
 	if len(protosHosts) != len(namecheapHosts) {
 		return false
 	}
@@ -161,59 +35,79 @@ func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []name
 	return true
 }
 
-func activityLoop(interval time.Duration) {
+func activityLoop(interval time.Duration, domain string, protosURL string, apiuser string, apitoken string, username string) {
+
+	domainParts := strings.Split(domain, ".")
 
 	log.Info("Starting with a check interval of ", interval*time.Second)
 	log.Info("Using ", protosURL, " to connect to Protos.")
 
-	client := namecheap.NewClient(apiuser, apitoken, username)
+	// Clients to interact with Protos and Namecheap
+	pclient := protos.NewClient(protosURL)
+	nclient := namecheap.NewClient(apiuser, apitoken, username)
+
+	// Each service provider needs to register with protos
 	log.Info("Registering as DNS provider")
-	err := regsiterDNSProvider()
+	err := pclient.RegisterProvider("dns")
 	if err != nil {
-		log.Error("Failed to register as DNS provider: ", err)
-		os.Exit(1)
+		if strings.Contains(err.Error(), "already registered") {
+			log.Error("Failed to register as DNS provider: ", strings.TrimRight(err.Error(), "\n"))
+		} else {
+			log.Fatal("Failed to register as DNS provider: ", err)
+		}
 	}
 
-	domainInfo, err := checkDomain(domain)
+	// Checking that the given domain exists in the Namecheap account
+	log.Info("Checking domain ", domain)
+	domainInfo, err := nclient.DomainGetInfo(domain)
 	if err != nil {
-		log.Error("Cant find domain: ", domain, ". ", err)
-		os.Exit(1)
+		log.Fatal("Cant find domain: ", domain, ". ", err)
 	}
 	log.Info("Found domain ", domain, " with nameservers ", domainInfo.DNSDetails.Nameservers)
 
+	// The following periodically checks the resources and creates new ones in Namecheap
 	for {
 
-		resources, err := getDNSResources()
-		if err != nil {
-			log.Error(err)
-		}
-		domainHosts, err := getDomainHosts(domain)
-		if err != nil {
-			log.Error(err)
-		}
+		time.Sleep(interval * time.Second)
 
+		// Retrieving Protos resources
+		resources, err := pclient.GetResources()
+		if err != nil {
+			log.Error(err)
+			continue
+		}
 		newHosts := []namecheap.DomainDNSHost{}
-		for _, resource := range resources {
-			record := resource.Record
+		logResources := map[string]protos.Resource{}
+		for id, resource := range resources {
+			var record protos.DNSResource
+			record = resource.Record.(protos.DNSResource)
 			host := namecheap.DomainDNSHost{Name: record.Host, Type: record.Type, Address: record.Value, TTL: record.TTL}
 			newHosts = append(newHosts, host)
+			logResources[id] = *resource
 		}
+		log.Debugf("Retrieved %v resources from Protos: %v", len(resources), logResources)
+
+		// Retrieving all subdomains for given domain
+		domainHosts, err := nclient.DomainsDNSGetHosts(domainParts[0], domainParts[1])
+		if err != nil {
+			log.Error(err)
+			continue
+		}
+		log.Debugf("Retrieved %v hosts from Namecheap: %v", len(domainHosts.Hosts), domainHosts.Hosts)
 
 		if compareRecords(newHosts, domainHosts.Hosts) {
-			log.Info("Records are the same")
-			setStatusBatch(resources, "created")
+			log.Debug("Records are the same. Doing nothing")
 		} else {
-			log.Info("Records are not the same. Creating all hosts")
+			log.Info("Records are not the same. Synchronizing.")
 			domainParts := strings.Split(domain, ".")
-			_, err := client.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
+			_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
 			if err != nil {
 				log.Error(err)
 			} else {
-				setStatusBatch(resources, "created")
+				log.Info("Updating the status for all DNS resources")
+				pclient.SetStatusBatch(resources, "created")
 			}
 		}
-
-		time.Sleep(interval * time.Second)
 
 	}
 }
@@ -226,6 +120,11 @@ func main() {
 	app.Email = "alex@giurgiu.io"
 	app.Version = "0.0.1"
 
+	var apiuser string
+	var apitoken string
+	var username string
+	var domain string
+	var protosURL string
 	var interval int
 	var loglevel string
 
@@ -287,12 +186,11 @@ func main() {
 		{
 			Name:  "start",
 			Usage: "start the Namecheap DNS service",
-			Action: func(c *cli.Context) error {
+			Action: func(c *cli.Context) {
 				if username == "" || apiuser == "" || apitoken == "" || domain == "" {
 					log.Fatal("username, apiuser, token and domain are required.")
 				}
-				activityLoop(time.Duration(interval))
-				return nil
+				activityLoop(time.Duration(interval), domain, protosURL, apiuser, apitoken, username)
 			},
 		},
 	}
