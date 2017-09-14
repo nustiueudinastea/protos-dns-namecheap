@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/signal"
 	"strings"
 	"time"
 
@@ -12,6 +13,22 @@ import (
 )
 
 var log = logrus.New()
+
+func waitQuit(pclient protos.Protos) {
+	sigchan := make(chan os.Signal, 10)
+	signal.Notify(sigchan, os.Interrupt)
+	<-sigchan
+	log.Info("Deregisterting as DNS provider")
+	err := pclient.DeregisterProvider("dns")
+	if err != nil {
+		log.Error("Could not deregister as DNS provider: ", err.Error())
+	}
+	log.Info("Stopping Namecheap DNS provider")
+
+	// do last actions and wait for all write operations to end
+
+	os.Exit(0)
+}
 
 func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []namecheap.DomainDNSHost) bool {
 	// The following 'if' is required because Namecheap has two default hosts (www and @) for a domain that doesn't have any custom hosts
@@ -45,6 +62,8 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 	// Clients to interact with Protos and Namecheap
 	pclient := protos.NewClient(protosURL)
 	nclient := namecheap.NewClient(apiuser, apitoken, username)
+
+	go waitQuit(pclient)
 
 	// Each service provider needs to register with protos
 	log.Info("Registering as DNS provider")
@@ -190,6 +209,7 @@ func main() {
 				if username == "" || apiuser == "" || apitoken == "" || domain == "" {
 					log.Fatal("username, apiuser, token and domain are required.")
 				}
+
 				activityLoop(time.Duration(interval), domain, protosURL, apiuser, apitoken, username)
 			},
 		},
