@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/Sirupsen/logrus"
@@ -16,7 +17,7 @@ var log = logrus.New()
 
 func waitQuit(pclient protos.Protos) {
 	sigchan := make(chan os.Signal, 10)
-	signal.Notify(sigchan, os.Interrupt)
+	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigchan
 	log.Info("Deregisterting as DNS provider")
 	err := pclient.DeregisterProvider("dns")
@@ -67,6 +68,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 
 	// Each service provider needs to register with protos
 	log.Info("Registering as DNS provider")
+	time.Sleep(4 * time.Second) // Giving Docker some time to assign us an IP
 	err := pclient.RegisterProvider("dns")
 	if err != nil {
 		if strings.Contains(err.Error(), "already registered") {
