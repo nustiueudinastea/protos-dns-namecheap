@@ -57,11 +57,16 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 
 	domainParts := strings.Split(domain, ".")
 
+	appID, err := protos.GetAppID()
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Info("Starting with a check interval of ", interval*time.Second)
 	log.Info("Using ", protosURL, " to connect to Protos.")
 
 	// Clients to interact with Protos and Namecheap
-	pclient := protos.NewClient(protosURL)
+	pclient := protos.NewClient(protosURL, appID)
 	nclient := namecheap.NewClient(apiuser, apitoken, username)
 
 	go waitQuit(pclient)
@@ -69,7 +74,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 	// Each service provider needs to register with protos
 	log.Info("Registering as DNS provider")
 	time.Sleep(4 * time.Second) // Giving Docker some time to assign us an IP
-	err := pclient.RegisterProvider("dns")
+	err = pclient.RegisterProvider("dns")
 	if err != nil {
 		if strings.Contains(err.Error(), "already registered") {
 			log.Error("Failed to register as DNS provider: ", strings.TrimRight(err.Error(), "\n"))
@@ -191,15 +196,11 @@ func main() {
 	}
 
 	app.Before = func(c *cli.Context) error {
-		if loglevel == "debug" {
-			log.Level = logrus.DebugLevel
-		} else if loglevel == "info" {
-			log.Level = logrus.InfoLevel
-		} else if loglevel == "warn" {
-			log.Level = logrus.WarnLevel
-		} else if loglevel == "error" {
-			log.Level = logrus.ErrorLevel
+		level, err := logrus.ParseLevel(loglevel)
+		if err != nil {
+			return err
 		}
+		log.SetLevel(level)
 		return nil
 	}
 
