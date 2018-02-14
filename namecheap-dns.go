@@ -9,6 +9,7 @@ import (
 
 	"github.com/Sirupsen/logrus"
 	namecheap "github.com/billputer/go-namecheap"
+	"github.com/nustiueudinastea/protos/resource"
 	"github.com/nustiueudinastea/protoslib-go"
 	"gopkg.in/urfave/cli.v1"
 )
@@ -19,14 +20,12 @@ func waitQuit(pclient protos.Protos) {
 	sigchan := make(chan os.Signal, 10)
 	signal.Notify(sigchan, syscall.SIGINT, syscall.SIGTERM)
 	<-sigchan
-	log.Info("Deregisterting as DNS provider")
+	log.Info("Deregistering as DNS provider")
 	err := pclient.DeregisterProvider("dns")
 	if err != nil {
 		log.Error("Could not deregister as DNS provider: ", err.Error())
 	}
 	log.Info("Stopping Namecheap DNS provider")
-
-	// do last actions and wait for all write operations to end
 
 	os.Exit(0)
 }
@@ -42,7 +41,7 @@ func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []name
 	var matchCount = 0
 	for _, phost := range protosHosts {
 		for _, nhost := range namecheapHosts {
-			if phost.Address == nhost.Address && phost.Name == nhost.Name && phost.TTL == nhost.TTL && phost.Type == nhost.Type {
+			if phost.Address == nhost.Address && strings.ToLower(phost.Name) == strings.ToLower(nhost.Name) && phost.TTL == nhost.TTL && strings.ToLower(phost.Type) == strings.ToLower(nhost.Type) {
 				matchCount++
 			}
 		}
@@ -92,9 +91,13 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 	log.Info("Found domain ", domain, " with nameservers ", domainInfo.DNSDetails.Nameservers)
 
 	// The following periodically checks the resources and creates new ones in Namecheap
+	first := true
 	for {
 
-		time.Sleep(interval * time.Second)
+		if first == false {
+			time.Sleep(interval * time.Second)
+		}
+		first = false
 
 		// Retrieving Protos resources
 		resources, err := pclient.GetResources()
@@ -103,13 +106,13 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 			continue
 		}
 		newHosts := []namecheap.DomainDNSHost{}
-		logResources := map[string]protos.Resource{}
-		for id, resource := range resources {
-			var record protos.DNSResource
-			record = resource.Record.(protos.DNSResource)
+		logResources := map[string]*resource.Resource{}
+		for id, rsc := range resources {
+			var record *resource.DNSResource
+			record = rsc.Value.(*resource.DNSResource)
 			host := namecheap.DomainDNSHost{Name: record.Host, Type: record.Type, Address: record.Value, TTL: record.TTL}
 			newHosts = append(newHosts, host)
-			logResources[id] = *resource
+			logResources[id] = resources[id]
 		}
 		log.Debugf("Retrieved %v resources from Protos: %v", len(resources), logResources)
 
