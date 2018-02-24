@@ -1,20 +1,32 @@
 package main
 
 import (
+	"errors"
+	"net"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
 	"time"
 
-	"github.com/Sirupsen/logrus"
 	namecheap "github.com/billputer/go-namecheap"
-	"github.com/nustiueudinastea/protos/resource"
-	"github.com/nustiueudinastea/protoslib-go"
-	"gopkg.in/urfave/cli.v1"
+	resource "github.com/nustiueudinastea/protos/resource"
+	protos "github.com/nustiueudinastea/protoslib-go"
+	logrus "github.com/sirupsen/logrus"
+	cli "gopkg.in/urfave/cli.v1"
 )
 
 var log = logrus.New()
+var domain string
+
+func stringInSlice(a string, list []string) (bool, int) {
+	for i, b := range list {
+		if b == a {
+			return true, i
+		}
+	}
+	return false, 0
+}
 
 func waitQuit(pclient protos.Protos) {
 	sigchan := make(chan os.Signal, 10)
@@ -48,6 +60,30 @@ func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []name
 	}
 	if len(protosHosts) != matchCount {
 		return false
+	}
+	return true
+}
+
+func lookUpDNS(dmn string, rtype string) ([]string, error) {
+	switch strings.ToUpper(rtype) {
+	case "TXT":
+		return net.LookupTXT(dmn)
+	default:
+		return []string{""}, errors.New("DNS record type " + rtype + " not supported")
+	}
+}
+
+func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
+	for _, record := range protosHosts {
+		values, err := lookUpDNS(record.Name+"."+domain, record.Type)
+		if err != nil {
+			log.Warnf("Record %s does not have a value: %s", record.Name, err.Error())
+			return false
+		}
+		if ok, _ := stringInSlice(record.Address, values); ok == false {
+			log.Warnf("Record %s does not have value %s", record.Name, record.Address)
+			return false
+		}
 	}
 	return true
 }
@@ -132,10 +168,22 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 			_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
 			if err != nil {
 				log.Error(err)
-			} else {
-				log.Info("Updating the status for all DNS resources")
-				pclient.SetStatusBatch(resources, "created")
+				continue
 			}
+
+			for checkRecords(newHosts) == false {
+				log.Info("Records not active yet. Creating bogus record. HACK")
+				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: "aaaa"}
+				extraHosts := append(newHosts, testHost)
+				nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], extraHosts)
+				time.Sleep(20 * time.Second)
+			}
+
+			nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
+			log.Info("All records have been created and are active")
+			log.Info("Updating the status for all DNS resources")
+			pclient.SetStatusBatch(resources, "created")
+
 		}
 
 	}
@@ -152,7 +200,6 @@ func main() {
 	var apiuser string
 	var apitoken string
 	var username string
-	var domain string
 	var protosURL string
 	var interval int
 	var loglevel string
