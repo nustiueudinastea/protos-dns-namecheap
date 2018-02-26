@@ -2,7 +2,6 @@ package main
 
 import (
 	"errors"
-	"net"
 	"os"
 	"os/signal"
 	"strings"
@@ -10,6 +9,7 @@ import (
 	"time"
 
 	namecheap "github.com/billputer/go-namecheap"
+	dns "github.com/miekg/dns"
 	resource "github.com/nustiueudinastea/protos/resource"
 	protos "github.com/nustiueudinastea/protoslib-go"
 	logrus "github.com/sirupsen/logrus"
@@ -65,12 +65,36 @@ func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []name
 }
 
 func lookUpDNS(dmn string, rtype string) ([]string, error) {
+	c := dns.Client{}
+	m := dns.Msg{}
+
+	server := "8.8.8.8"
+	log.Debugf("Checking DNS record %s of type %s using server %s", dmn, rtype, server)
+
+	// Setting the question
 	switch strings.ToUpper(rtype) {
 	case "TXT":
-		return net.LookupTXT(dmn)
+		m.SetQuestion(dmn+".", dns.TypeTXT)
 	default:
 		return []string{""}, errors.New("DNS record type " + rtype + " not supported")
 	}
+
+	// Performing the question
+	r, _, err := c.Exchange(&m, server+":53")
+	if err != nil {
+		return []string{""}, err
+	}
+
+	if len(r.Answer) == 0 {
+		return []string{""}, errors.New("No DNS result for record " + dmn)
+	}
+	result := []string{}
+	for _, ans := range r.Answer {
+		parts := strings.Split(ans.String(), "\t")
+		value := strings.Replace(parts[4], "\"", "", -1)
+		result = append(result, value)
+	}
+	return result, nil
 }
 
 func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
@@ -172,7 +196,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 			}
 
 			for checkRecords(newHosts) == false {
-				log.Info("Records not active yet. Creating bogus record. HACK")
+				log.Debug("Records not active yet. Creating bogus record. HACK")
 				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: "aaaa"}
 				extraHosts := append(newHosts, testHost)
 				nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], extraHosts)
