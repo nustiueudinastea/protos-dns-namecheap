@@ -75,6 +75,10 @@ func lookUpDNS(dmn string, rtype string) ([]string, error) {
 	switch strings.ToUpper(rtype) {
 	case "TXT":
 		m.SetQuestion(dmn+".", dns.TypeTXT)
+	case "A":
+		m.SetQuestion(dmn+".", dns.TypeA)
+	case "MX":
+		m.SetQuestion(dmn+".", dns.TypeMX)
 	default:
 		return []string{""}, errors.New("DNS record type " + rtype + " not supported")
 	}
