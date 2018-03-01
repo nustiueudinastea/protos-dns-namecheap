@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -201,7 +202,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 
 			for checkRecords(newHosts) == false {
 				log.Debug("Records not active yet. Creating bogus record. HACK")
-				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: "aaaa"}
+				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: strconv.FormatInt(time.Now().Unix(), 10)}
 				extraHosts := append(newHosts, testHost)
 				nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], extraHosts)
 				time.Sleep(20 * time.Second)
