@@ -22,7 +22,7 @@ var domain string
 
 func stringInSlice(a string, list []string) (bool, int) {
 	for i, b := range list {
-		if b == a {
+		if strings.TrimSuffix(b, ".") == strings.TrimSuffix(a, ".") {
 			return true, i
 		}
 	}
@@ -54,7 +54,7 @@ func compareRecords(protosHosts []namecheap.DomainDNSHost, namecheapHosts []name
 	var matchCount = 0
 	for _, phost := range protosHosts {
 		for _, nhost := range namecheapHosts {
-			if phost.Address == nhost.Address && strings.ToLower(phost.Name) == strings.ToLower(nhost.Name) && phost.TTL == nhost.TTL && strings.ToLower(phost.Type) == strings.ToLower(nhost.Type) {
+			if strings.TrimSuffix(phost.Address, ".") == strings.TrimSuffix(nhost.Address, ".") && strings.ToLower(phost.Name) == strings.ToLower(nhost.Name) && phost.TTL-120 < nhost.TTL && phost.TTL+120 > nhost.TTL && strings.ToLower(phost.Type) == strings.ToLower(nhost.Type) {
 				matchCount++
 			}
 		}
@@ -75,11 +75,11 @@ func lookUpDNS(dmn string, rtype string) ([]string, error) {
 	// Setting the question
 	switch strings.ToUpper(rtype) {
 	case "TXT":
-		m.SetQuestion(dmn+".", dns.TypeTXT)
+		m.SetQuestion(dmn, dns.TypeTXT)
 	case "A":
-		m.SetQuestion(dmn+".", dns.TypeA)
+		m.SetQuestion(dmn, dns.TypeA)
 	case "MX":
-		m.SetQuestion(dmn+".", dns.TypeMX)
+		m.SetQuestion(dmn, dns.TypeMX)
 	default:
 		return []string{""}, errors.New("DNS record type " + rtype + " not supported")
 	}
@@ -97,6 +97,9 @@ func lookUpDNS(dmn string, rtype string) ([]string, error) {
 	for _, ans := range r.Answer {
 		parts := strings.Split(ans.String(), "\t")
 		value := strings.Replace(parts[4], "\"", "", -1)
+		if strings.ToUpper(rtype) == "MX" {
+			value = strings.Split(value, " ")[1]
+		}
 		result = append(result, value)
 	}
 	return result, nil
@@ -104,7 +107,14 @@ func lookUpDNS(dmn string, rtype string) ([]string, error) {
 
 func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
 	for _, record := range protosHosts {
-		values, err := lookUpDNS(record.Name+"."+domain, record.Type)
+
+		var fqdn string
+		if record.Name == "@" {
+			fqdn = domain + "."
+		} else {
+			fqdn = record.Name + "." + domain + "."
+		}
+		values, err := lookUpDNS(fqdn, record.Type)
 		if err != nil {
 			log.Warnf("Record %s does not have a value: %s", record.Name, err.Error())
 			return false
