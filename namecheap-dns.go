@@ -20,6 +20,9 @@ import (
 var log = logrus.New()
 var domain string
 
+var pclient protos.Protos
+var nclient *namecheap.Client
+
 func stringInSlice(a string, list []string) (bool, int) {
 	for i, b := range list {
 		if strings.TrimSuffix(b, ".") == strings.TrimSuffix(a, ".") {
@@ -127,6 +130,43 @@ func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
 	return true
 }
 
+func syncRecords(newHosts []namecheap.DomainDNSHost, resources map[string]*resource.Resource, quit <-chan bool) {
+	domainParts := strings.Split(domain, ".")
+	_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
+	if err != nil {
+		log.Error(err)
+	}
+
+loop:
+	for {
+		select {
+		case <-quit:
+			return
+		default:
+			if checkRecords(newHosts) == false {
+				log.Debug("Records not active yet. Creating bogus record. HACK")
+				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: strconv.FormatInt(time.Now().Unix(), 10)}
+				extraHosts := append(newHosts, testHost)
+				_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], extraHosts)
+				if err != nil {
+					log.Error(err)
+				}
+				time.Sleep(20 * time.Second)
+			} else {
+				break loop
+			}
+		}
+	}
+
+	nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
+	log.Info("All records have been created and are active")
+	log.Info("Updating the status for all DNS resources")
+	err = pclient.SetStatusBatch(resources, "created")
+	if err != nil {
+		log.Error(err)
+	}
+}
+
 func activityLoop(interval time.Duration, domain string, protosURL string, apiuser string, apitoken string, username string) {
 
 	domainParts := strings.Split(domain, ".")
@@ -140,8 +180,8 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 	log.Info("Using ", protosURL, " to connect to Protos.")
 
 	// Clients to interact with Protos and Namecheap
-	pclient := protos.NewClient(protosURL, appID)
-	nclient := namecheap.NewClient(apiuser, apitoken, username)
+	pclient = protos.NewClient(protosURL, appID)
+	nclient = namecheap.NewClient(apiuser, apitoken, username)
 
 	go waitQuit(pclient)
 
@@ -167,6 +207,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 
 	// The following periodically checks the resources and creates new ones in Namecheap
 	first := true
+	quit := make(chan bool)
 	for {
 
 		if first == false {
@@ -202,29 +243,11 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 		if compareRecords(newHosts, domainHosts.Hosts) {
 			log.Debug("Records are the same. Doing nothing")
 		} else {
+			close(quit) // interrupts the already running syncRecords routing in case there is one
+			quit = make(chan bool)
 			log.Info("Records are not the same. Synchronizing.")
-			domainParts := strings.Split(domain, ".")
-			_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
-			if err != nil {
-				log.Error(err)
-				continue
-			}
-
-			for checkRecords(newHosts) == false {
-				log.Debug("Records not active yet. Creating bogus record. HACK")
-				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: strconv.FormatInt(time.Now().Unix(), 10)}
-				extraHosts := append(newHosts, testHost)
-				nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], extraHosts)
-				time.Sleep(20 * time.Second)
-			}
-
-			nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
-			log.Info("All records have been created and are active")
-			log.Info("Updating the status for all DNS resources")
-			pclient.SetStatusBatch(resources, "created")
-
+			go syncRecords(newHosts, resources, quit)
 		}
-
 	}
 }
 
