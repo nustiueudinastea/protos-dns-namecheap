@@ -12,14 +12,14 @@
     "internal",
     "q"
   ]
-  revision = "68fc73b635f890fe7ba2f3b15ce80c85b28a744f"
-  version = "v2.0.2"
+  revision = "bda68dab90fc908ee5dbccb36400edf4f54972d6"
+  version = "v2.1.1"
 
 [[projects]]
   branch = "master"
   name = "github.com/billputer/go-namecheap"
   packages = ["."]
-  revision = "67f2fff37e7de28e3cae33f3f376912c49eee259"
+  revision = "521b63a530e6acccd4279442e579e0c74f26bcf9"
 
 [[projects]]
   branch = "master"
@@ -36,47 +36,45 @@
 [[projects]]
   name = "github.com/miekg/dns"
   packages = ["."]
-  revision = "5364553f1ee9cddc7ac8b62dce148309c386695b"
-  version = "v1.0.4"
-
-[[projects]]
-  branch = "master"
-  name = "github.com/mitchellh/mapstructure"
-  packages = ["."]
-  revision = "00c29f56e2386353d58c599509e8dc3801b0d716"
+  revision = "e57bf427e68187a27e22adceac868350d7a7079b"
+  version = "v1.0.7"
 
 [[projects]]
   branch = "master"
   name = "github.com/nustiueudinastea/protos"
   packages = [
+    "auth",
+    "capability",
     "config",
     "database",
     "resource",
     "util"
   ]
-  revision = "19c1cd58d2aef211dd91a8c2d4d46efee86985ef"
+  revision = "0d3689071d829f8b3542e5eebf1355e603c5beba"
 
 [[projects]]
   branch = "master"
   name = "github.com/nustiueudinastea/protoslib-go"
   packages = ["."]
-  revision = "550891bc2fdd743931fca96e7c915fd6d5262821"
+  revision = "42138620de2febcbe94b0ad2f178798320d40806"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "d682213848ed68c0a260ca37d6dd5ace8423f5ba"
-  version = "v1.0.4"
+  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
+  version = "v1.0.5"
 
 [[projects]]
   branch = "master"
   name = "golang.org/x/crypto"
   packages = [
+    "bcrypt",
+    "blowfish",
     "ed25519",
     "ed25519/internal/edwards25519",
     "ssh/terminal"
   ]
-  revision = "91a49db82a88618983a78a06c1cbd4e00ab749ab"
+  revision = "7f39a6fea4fe9364fb61e1def6a268a51b4f3a06"
 
 [[projects]]
   branch = "master"
@@ -88,7 +86,7 @@
     "ipv4",
     "ipv6"
   ]
-  revision = "cbe0f9307d0156177f9dd5dc85da1a31abc5f2fb"
+  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
 
 [[projects]]
   branch = "master"
@@ -97,7 +95,7 @@
     "unix",
     "windows"
   ]
-  revision = "f6cff0780e542efa0c8e864dc8fa522808f6a598"
+  revision = "ad87a3a340fa7f3bed189293fbfa7a9b7e021ae1"
 
 [[projects]]
   name = "gopkg.in/urfave/cli.v1"
@@ -108,8 +106,8 @@
 [[projects]]
   name = "gopkg.in/yaml.v2"
   packages = ["."]
-  revision = "7f97868eec74b32b0982dd158a51a446d1da7eb5"
-  version = "v2.1.1"
+  revision = "5420a8b6744d3b0345ab293f6fcba19c978f1183"
+  version = "v2.2.1"
 
 [solve-meta]
   analyzer-name = "dep"
