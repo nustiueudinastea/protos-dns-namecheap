@@ -1,8 +1,8 @@
 FROM golang:1.8.3
 LABEL protos="0.0.1" \
       protos.installer.metadata.description="This applications provides the capability to interact with the Namecheap API" \
-      protos.installer.metadata.params="api_user,api_token,username,domain" \
-      protos.installer.metadata.capabilities="ResourceProvider,InternetAccess" \
+      protos.installer.metadata.params="api_user,api_token,username" \
+      protos.installer.metadata.capabilities="ResourceProvider,InternetAccess,GetInformation" \
       protos.installer.metadata.provides="dns"
 
 ADD . "/go/src/namecheap-dns/"

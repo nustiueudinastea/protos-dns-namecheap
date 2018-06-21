@@ -18,7 +18,6 @@ import (
 )
 
 var log = logrus.New()
-var domain string
 
 var pclient protos.Protos
 var nclient *namecheap.Client
@@ -108,7 +107,7 @@ func lookUpDNS(dmn string, rtype string) ([]string, error) {
 	return result, nil
 }
 
-func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
+func checkRecords(protosHosts []namecheap.DomainDNSHost, domain string) bool {
 	for _, record := range protosHosts {
 
 		var fqdn string
@@ -130,7 +129,7 @@ func checkRecords(protosHosts []namecheap.DomainDNSHost) bool {
 	return true
 }
 
-func syncRecords(newHosts []namecheap.DomainDNSHost, resources map[string]*resource.Resource, quit <-chan bool) {
+func syncRecords(newHosts []namecheap.DomainDNSHost, resources map[string]*resource.Resource, domain string, quit <-chan bool) {
 	domainParts := strings.Split(domain, ".")
 	_, err := nclient.DomainDNSSetHosts(domainParts[0], domainParts[1], newHosts)
 	if err != nil {
@@ -143,7 +142,7 @@ loop:
 		case <-quit:
 			return
 		default:
-			if checkRecords(newHosts) == false {
+			if checkRecords(newHosts, domain) == false {
 				log.Debug("Records not active yet. Creating bogus record. HACK")
 				testHost := namecheap.DomainDNSHost{Name: "temp", Type: "TXT", Address: strconv.FormatInt(time.Now().Unix(), 10)}
 				extraHosts := append(newHosts, testHost)
@@ -167,9 +166,7 @@ loop:
 	}
 }
 
-func activityLoop(interval time.Duration, domain string, protosURL string, apiuser string, apitoken string, username string) {
-
-	domainParts := strings.Split(domain, ".")
+func activityLoop(interval time.Duration, protosURL string, apiuser string, apitoken string, username string) {
 
 	appID, err := protos.GetAppID()
 	if err != nil {
@@ -196,6 +193,13 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 			log.Fatal("Failed to register as DNS provider: ", err)
 		}
 	}
+
+	log.Debug("Getting domain from Protos")
+	domain, err := pclient.GetDomain()
+	if err != nil {
+		log.Fatal(err)
+	}
+	domainParts := strings.Split(domain, ".")
 
 	// Checking that the given domain exists in the Namecheap account
 	log.Info("Checking domain ", domain)
@@ -246,7 +250,7 @@ func activityLoop(interval time.Duration, domain string, protosURL string, apius
 			close(quit) // interrupts the already running syncRecords routing in case there is one
 			quit = make(chan bool)
 			log.Info("Records are not the same. Synchronizing.")
-			go syncRecords(newHosts, resources, quit)
+			go syncRecords(newHosts, resources, domain, quit)
 		}
 	}
 }
@@ -282,11 +286,6 @@ func main() {
 			Usage:       "Specify your Namecheap API token",
 			Destination: &apitoken,
 		},
-		cli.StringFlag{
-			Name:        "domain",
-			Usage:       "Specify your Namecheap hosted domain",
-			Destination: &domain,
-		},
 		cli.IntFlag{
 			Name:        "interval",
 			Value:       30,
@@ -301,7 +300,7 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:        "protosurl",
-			Value:       "http://protos:8080/",
+			Value:       "http://protos:8080",
 			Usage:       "Specify url used to connect to Protos API",
 			Destination: &protosURL,
 		},
@@ -321,11 +320,11 @@ func main() {
 			Name:  "start",
 			Usage: "start the Namecheap DNS service",
 			Action: func(c *cli.Context) {
-				if username == "" || apiuser == "" || apitoken == "" || domain == "" {
-					log.Fatal("username, apiuser, token and domain are required.")
+				if username == "" || apiuser == "" || apitoken == "" {
+					log.Fatal("username, apiuser and token are required.")
 				}
 
-				activityLoop(time.Duration(interval), domain, protosURL, apiuser, apitoken, username)
+				activityLoop(time.Duration(interval), protosURL, apiuser, apitoken, username)
 			},
 		},
 	}
