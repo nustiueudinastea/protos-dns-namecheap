@@ -21,6 +21,7 @@ LABEL protos="0.0.1" \
 
 COPY --from=builder /go/src/namecheap-dns/namecheap-dns /root/
 COPY --from=builder /go/src/namecheap-dns/start.sh /root/
+RUN apk add ca-certificates
 RUN chmod +x /root/start.sh
 
 ENTRYPOINT ["/root/start.sh"]
