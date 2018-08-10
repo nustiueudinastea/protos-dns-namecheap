@@ -12,7 +12,7 @@ import (
 	namecheap "github.com/billputer/go-namecheap"
 	dns "github.com/miekg/dns"
 	resource "github.com/nustiueudinastea/protos/resource"
-	protos "github.com/nustiueudinastea/protoslib-go"
+	protos "github.com/protosio/protoslib-go"
 	logrus "github.com/sirupsen/logrus"
 	cli "gopkg.in/urfave/cli.v1"
 )
