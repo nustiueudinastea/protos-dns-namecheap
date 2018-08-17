@@ -19,7 +19,7 @@
   branch = "master"
   name = "github.com/billputer/go-namecheap"
   packages = ["."]
-  revision = "521b63a530e6acccd4279442e579e0c74f26bcf9"
+  revision = "ebca3d36eda400848b1fefb99a8409f5a13a834d"
 
 [[projects]]
   branch = "master"
@@ -36,8 +36,8 @@
 [[projects]]
   name = "github.com/miekg/dns"
   packages = ["."]
-  revision = "e57bf427e68187a27e22adceac868350d7a7079b"
-  version = "v1.0.7"
+  revision = "5a2b9fab83ff0f8bfc99684bd5f43a37abe560f1"
+  version = "v1.0.8"
 
 [[projects]]
   branch = "master"
@@ -50,19 +50,19 @@
     "resource",
     "util"
   ]
-  revision = "0d3689071d829f8b3542e5eebf1355e603c5beba"
+  revision = "194e2ae8d69f109e0fd0bdf63f42311b9564e3ee"
 
 [[projects]]
   branch = "master"
-  name = "github.com/nustiueudinastea/protoslib-go"
+  name = "github.com/protosio/protoslib-go"
   packages = ["."]
-  revision = "42138620de2febcbe94b0ad2f178798320d40806"
+  revision = "2ef5113a5edcfcc8067edc100166e0d1710ba880"
 
 [[projects]]
   name = "github.com/sirupsen/logrus"
   packages = ["."]
-  revision = "c155da19408a8799da419ed3eeb0cb5db0ad5dbc"
-  version = "v1.0.5"
+  revision = "3e01752db0189b9157070a0e1668a620f9a85da2"
+  version = "v1.0.6"
 
 [[projects]]
   branch = "master"
@@ -74,7 +74,7 @@
     "ed25519/internal/edwards25519",
     "ssh/terminal"
   ]
-  revision = "7f39a6fea4fe9364fb61e1def6a268a51b4f3a06"
+  revision = "aabede6cba87e37f413b3e60ebfc214f8eeca1b0"
 
 [[projects]]
   branch = "master"
@@ -86,7 +86,7 @@
     "ipv4",
     "ipv6"
   ]
-  revision = "db08ff08e8622530d9ed3a0e8ac279f6d4c02196"
+  revision = "aaf60122140d3fcf75376d319f0554393160eb50"
 
 [[projects]]
   branch = "master"
@@ -95,7 +95,7 @@
     "unix",
     "windows"
   ]
-  revision = "ad87a3a340fa7f3bed189293fbfa7a9b7e021ae1"
+  revision = "1c9583448a9c3aa0f9a6a5241bf73c0bd8aafded"
 
 [[projects]]
   name = "gopkg.in/urfave/cli.v1"
@@ -112,6 +112,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "a13f18f8798778ee27749c4f5e9bd95d4f55612ae74edfea1185503a47ab5eab"
+  inputs-digest = "c5dc2a92414358e30c4a07d9ad701acf4553c21a7a58de163b47226562967d1b"
   solver-name = "gps-cdcl"
   solver-version = 1
