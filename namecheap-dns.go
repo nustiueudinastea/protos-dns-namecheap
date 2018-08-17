@@ -261,7 +261,7 @@ func main() {
 	app.Name = "protos-dns-namecheap"
 	app.Author = "Alex Giurgiu"
 	app.Email = "alex@giurgiu.io"
-	app.Version = "0.0.1"
+	app.Version = "0.0.6"
 
 	var apiuser string
 	var apitoken string

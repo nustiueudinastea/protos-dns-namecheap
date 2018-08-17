@@ -1,4 +1,4 @@
-FROM golang:1.8.3 as builder
+FROM golang:1.10.3 as builder
 LABEL protos="0.0.1" \
       protos.installer.metadata.description="This applications provides the capability to interact with the Namecheap API" \
       protos.installer.metadata.params="api_user,api_token,username" \
