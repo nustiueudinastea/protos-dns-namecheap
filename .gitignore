@@ -9,6 +9,7 @@ data/*
 *~
 
 ### VisualStudioCode ###
+.vscode/
 .vscode/*
 !.vscode/settings.json
 !.vscode/tasks.json
@@ -48,4 +49,6 @@ _testmain.go
 # External packages folder
 vendor/**
 !vendor/vendor.json
-glide.lock
+
+# Protos
+protos.dev.yaml
