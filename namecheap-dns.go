@@ -11,10 +11,10 @@ import (
 
 	namecheap "github.com/billputer/go-namecheap"
 	dns "github.com/miekg/dns"
-	resource "github.com/nustiueudinastea/protos/resource"
+	resource "github.com/protosio/protos/resource"
 	protos "github.com/protosio/protoslib-go"
 	logrus "github.com/sirupsen/logrus"
-	cli "gopkg.in/urfave/cli.v1"
+	cli "github.com/urfave/cli"
 )
 
 var log = logrus.New()
