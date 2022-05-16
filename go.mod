@@ -9,7 +9,7 @@ require (
 	github.com/boltdb/bolt v1.3.1 // indirect
 	github.com/golang/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.1 // indirect
-	github.com/miekg/dns v1.1.22
+	github.com/miekg/dns v1.1.25
 	github.com/protosio/protos v0.0.0-20190330154629-9bb971d91698
 	github.com/protosio/protoslib-go v0.0.0-20190122181737-0197f08367ff
 	github.com/sirupsen/logrus v1.4.2
