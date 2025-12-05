@@ -12,7 +12,7 @@ require (
 	github.com/miekg/dns v1.1.22
 	github.com/protosio/protos v0.0.0-20190330154629-9bb971d91698
 	github.com/protosio/protoslib-go v0.0.0-20190122181737-0197f08367ff
-	github.com/sirupsen/logrus v1.4.2
+	github.com/sirupsen/logrus v1.8.3
 	github.com/urfave/cli v1.22.1
 	github.com/vmihailenco/msgpack v4.0.4+incompatible // indirect
 	google.golang.org/appengine v1.6.5 // indirect
